@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy import create_backend, Column, Integer, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import declarative_base,  IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 
