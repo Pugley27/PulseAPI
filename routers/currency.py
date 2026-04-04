@@ -25,7 +25,6 @@ def add_cruor(item: schemas.CruorCreate, db: Session = Depends(get_db), _ = Depe
         new_player = schemas.Cruor(
             member_id=item.member_id,
             cruor_amount=item.cruor_amount,
-            join_date=datetime.utcnow()
         )
         db.add(new_player)
         db.commit()

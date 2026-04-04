@@ -1,6 +1,6 @@
 # definitions for tables to hold org currency for members, and the Pydantic models to validate incoming data for those tables.
 
-from sqlalchemy import  Column, Integer, String
+from sqlalchemy import  BigInteger, Column, Integer, BigInteger, String
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 
@@ -9,7 +9,7 @@ Base = declarative_base()
 # Table holding Cruor amounts for members
 class Cruor(Base):
   __tablename__ = "lockBox"
-  member_id = Column(Integer, primary_key=True, index=True)
+  member_id = Column(BigInteger, primary_key=True, index=True)
   cruor_amount = Column(Integer)
 
 
