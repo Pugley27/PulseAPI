@@ -1,10 +1,10 @@
 # This file handles the routing code for tracking member currency.
-from sqlalchemy.ext.declarative import  IntegrityError
+from sqlalchemy.exc import  IntegrityError
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from ..database import get_db, verify_key
-from .. import schemas
+from database import get_db, verify_key
+import schemas
 from fastapi import HTTPException, Depends
 
 router = APIRouter(

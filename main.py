@@ -1,6 +1,7 @@
 # This is the main entry point for the FastAPI application. This is used to handle rest api calls into the guild manager database. It also includes the code to set up the database connection and the API key verification for security.
-from .routers import currency
+from routers import currency
 from fastapi import FastAPI
+
 
 app = FastAPI()
                    
