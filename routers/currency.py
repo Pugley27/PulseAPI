@@ -24,6 +24,7 @@ def add_cruor(item: schemas.CruorCreate, db: Session = Depends(get_db), _ = Depe
         # 2. If they don't exist, create them with the starting amount
         new_player = schemas.Cruor(
             member_id=item.member_id,
+            display_name=item.display_name,
             cruor_amount=item.cruor_amount,
         )
         db.add(new_player)

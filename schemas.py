@@ -10,10 +10,12 @@ Base = declarative_base()
 class Cruor(Base):
   __tablename__ = "lockBox"
   member_id = Column(BigInteger, primary_key=True, index=True)
+  display_name = Column(String)
   cruor_amount = Column(Integer)
 
 
 # This validates data BEFORE it reaches your DB logic
 class CruorCreate(BaseModel):
   member_id: int
+  display_name: str
   cruor_amount: int
