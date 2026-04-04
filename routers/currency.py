@@ -12,7 +12,7 @@ router = APIRouter(
     tags=["Currency"]
 )
 
-@router.post("/add_cruor")
+@router.post("/add-cruor")
 def add_cruor(item: schemas.CruorCreate, db: Session = Depends(get_db), _ = Depends(verify_key)):
     new_item = schemas.Cruor(member_id=item.member_id, cruor_amount=item.cruor_amount)
     try:
