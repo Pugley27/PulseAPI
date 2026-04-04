@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db, verify_key
 import schemas
 from fastapi import HTTPException, Depends
+import datetime
 
 router = APIRouter(
     prefix="/currency",
