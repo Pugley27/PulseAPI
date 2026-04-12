@@ -19,3 +19,11 @@ class CruorCreate(BaseModel):
   member_id: int
   display_name: str
   cruor_amount: int
+
+class CheckBalance(BaseModel):
+  member_id: int
+
+class BidRequest(BaseModel):
+  user_id: int
+  amount: int
+  item_name: str
