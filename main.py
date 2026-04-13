@@ -2,6 +2,11 @@
 from routers import auctions, currency
 from fastapi import FastAPI
 
+#create all the tables in the database if they don't already exist. This is called in main.py when the bot starts up to make sure the tables are ready to go before any commands are used.
+from schemas import create_tables   
+from database import engine
+create_tables(engine)
+
 
 app = FastAPI()
                    

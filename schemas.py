@@ -1,6 +1,7 @@
 # definitions for tables to hold org currency for members, and the Pydantic models to validate incoming data for those tables.
 
-from sqlalchemy import  BigInteger, Column, Integer, BigInteger, String, Boolean
+
+from sqlalchemy import  BigInteger, Column, TIMESTAMP, Integer, BigInteger, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 
@@ -26,7 +27,7 @@ class CheckBalance(BaseModel):
 
 #Table holding items for auction
 class AuctionItems(Base):
-  __tablename__ = "auctionItems"
+  __tablename__ = "auction_items"
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String)
   description = Column(String)
@@ -37,8 +38,8 @@ class Auctions(Base):
   name = Column(String)
   description = Column(String)  
   item_id = Column(Integer)
-  start_time = Column(BigInteger)
-  end_time = Column(BigInteger)
+  start_time = Column(TIMESTAMP)
+  end_time = Column(TIMESTAMP)
   active = Column(Boolean)
   
 class BidRequest(BaseModel):
@@ -54,3 +55,11 @@ class AuctionCreate(BaseModel):
   name: str
   description: str
   item_id: int
+
+class StartAuctionRequest(BaseModel):
+  auction_id: int
+  duration_minutes: int
+
+#class that will create all the tables in the database if they don't already exist. This is called in main.py when the bot starts up to make sure the tables are ready to go before any commands are used.
+def create_tables(engine):
+    Base.metadata.create_all(bind=engine) 
