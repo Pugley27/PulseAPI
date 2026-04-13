@@ -38,10 +38,10 @@ def add_cruor(item: schemas.CruorCreate, db: Session = Depends(get_db), _ = Depe
     
     return {"status": "updated", "new_balance": player.cruor_amount}
  
-@router.get("/{user_id}")
-async def get_balance(item: schemas.CheckBalance, db: Session = Depends(get_db), _ = Depends(verify_key)):
+@router.get("/balance/{user_id}")
+async def get_balance(user_id: int, db: Session = Depends(get_db), _ = Depends(verify_key)):
      # 1. Try to find the member
-    player = db.query(schemas.Cruor).filter(schemas.Cruor.member_id == item.member_id).first()
+    player = db.query(schemas.Cruor).filter(schemas.Cruor.member_id == user_id).first()
 
     balance = player.cruor_amount if player else 0
     return {"balance": balance}
