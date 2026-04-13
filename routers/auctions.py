@@ -43,3 +43,9 @@ def add_auction(auction: schemas.AuctionCreate, db: Session = Depends(get_db), _
 
     db.commit()
     return {"status": "created", "auction_id": id, "item_name": item_name}
+
+@router.get("/active")
+def get_active_auctions(db: Session = Depends(get_db), _ = Depends(verify_key)):
+    result = db.execute(text("SELECT auctions.id, auctions.name, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id")) # add this later WHERE auctions.active = true"))
+    auctions = [{"id": row[0], "name": row[1], "item_name": row[2]} for row in result.fetchall()]
+    return {"auctions": auctions}
