@@ -23,7 +23,19 @@ class CruorCreate(BaseModel):
 class CheckBalance(BaseModel):
   member_id: int
 
+
+#Table holding items for auction
+class AuctionItems(Base):
+  __tablename__ = "auctionItems"
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String)
+  description = Column(String)
+  
 class BidRequest(BaseModel):
   user_id: int
   amount: int
   item_name: str
+
+class ItemCreate(BaseModel):
+  name : str
+  description: str
