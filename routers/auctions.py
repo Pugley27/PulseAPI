@@ -134,3 +134,20 @@ def place_bid(request: schemas.BidRequest, db: Session = Depends(get_db), _ = De
     
     db.commit()
     return {"status": "success", "auction_id": request.auction_id, "item_name": item_name, "bid_amount": updated_bid[0]}
+
+@router.get("/{auction_id}/bids")
+def get_bids(auction_id: int, db: Session = Depends(get_db), _ = Depends(verify_key)):
+    # First we need to check if the auction ID is valid and get the item name for the response
+    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id"), {"auction_id": auction_id})
+    auction_row = auction_result.fetchone()
+    print(f"Querying for auction ID: {auction_id}. Result: {auction_row}")
+    if not auction_row:
+        raise HTTPException(status_code=400, detail="Invalid auction ID. Please check the auction ID and try again.")
+    auction_name = auction_row[0]
+    item_name = auction_row[1]
+    print(f"Auction name for auction ID {auction_id} is {auction_name} and item name is {item_name}")
+
+    # Then we query the bids for this auction
+    bids_result = db.execute(text("SELECT user_id, amount FROM bids WHERE auction_id = :auction_id"), {"auction_id": auction_id})
+    bids = [{"user_id": row[0], "amount": row[1]} for row in bids_result.fetchall()]
+    return {"auction_id": auction_id, "item_name": item_name, "bids": bids}

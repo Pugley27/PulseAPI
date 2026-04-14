@@ -53,6 +53,9 @@ class BidRequest(BaseModel):
   auction_id: int
   amount: int
 
+class AuctionBids(BaseModel):
+  user_id: int
+  
 class ItemCreate(BaseModel):
   name : str
   description: str
