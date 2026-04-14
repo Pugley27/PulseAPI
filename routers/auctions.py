@@ -1,6 +1,6 @@
 # This file handles the routing code for tracking member currency.
 from sqlalchemy.exc import  IntegrityError
-from sqlalchemy import text
+from sqlalchemy import null, text
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -70,6 +70,12 @@ def get_active_auctions(db: Session = Depends(get_db), _ = Depends(verify_key)):
     auctions = [{"id": row[0], "name": row[1], "description": row[2], "end_time": row[3], "item_name": row[4]} for row in result.fetchall()]
     return {"auctions": auctions}
 
+@router.get("/unscheduled")
+def get_unscheduled_auctions(db: Session = Depends(get_db), _ = Depends(verify_key)):
+    result = db.execute(text("SELECT auctions.id, auctions.name, auctions.description, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.active = false or auctions.active is null"))
+    auctions = [{"id": row[0], "name": row[1], "description": row[2], "item_name": row[3]} for row in result.fetchall()]
+    return {"auctions": auctions}
+
 @router.post("/start-auction")
 def start_auction(request: schemas.StartAuctionRequest, db: Session = Depends(get_db), _ = Depends(verify_key)):
     # First we need to check if the auction ID is valid and get the item name for the response
@@ -91,3 +97,40 @@ def start_auction(request: schemas.StartAuctionRequest, db: Session = Depends(ge
     
     db.commit()
     return {"status": "started", "auction_id": request.auction_id, "item_name": item_name, "end_time": end_time.isoformat()}
+
+@router.post("/place-bid")
+def place_bid(request: schemas.BidRequest, db: Session = Depends(get_db), _ = Depends(verify_key)):
+    # First we need to check if the auction ID is valid and get the item name for the response
+    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id AND auctions.active = true"), {"auction_id": request.auction_id})
+    auction_row = auction_result.fetchone()
+    print(f"Querying for active auction ID: {request.auction_id}. Result: {auction_row}")
+    if not auction_row:
+        raise HTTPException(status_code=400, detail="Invalid or inactive auction ID. Please check the auction ID and try again.")
+    auction_name = auction_row[0]
+    item_name = auction_row[1]
+    print(f"Auction name for auction ID {request.auction_id} is {auction_name} and item name is {item_name}")
+
+    # Then we need to check if the user has enough balance to place the bid
+    query = text('SELECT cruor_amount FROM "lockBox" WHERE member_id = :user_id') # TODO fix lockbox table name so it is not case sensitive and doesn't require quotes
+    balance_result = db.execute(query, {"user_id": request.user_id})    
+    balance_row = balance_result.fetchone()
+    balance = balance_row[0] if balance_row else 0
+    print(f"User ID {request.user_id} has a balance of {balance} Cruor")
+
+    if request.amount > balance:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance. You have {balance} Cruor but your bid is for {request.amount} Cruor.")
+
+    # If they have enough balance, we insert or update their bid for this auction
+    stmt = text("""
+        INSERT INTO bids (auction_id, user_id, amount) VALUES (:auction_id, :user_id, :amount)
+        ON CONFLICT (auction_id, user_id) DO UPDATE SET amount = EXCLUDED.amount
+        RETURNING amount
+    """)
+    result = db.execute(stmt, {"auction_id": request.auction_id, "user_id": request.user_id, "amount": request.amount})
+    updated_bid = result.fetchone()
+    print(f"Placing bid for user ID {request.user_id} on auction ID {request.auction_id} with amount {request.amount}. Result: {updated_bid}")
+    if not updated_bid:
+        raise HTTPException(status_code=400, detail="Failed to place bid. Please check the auction ID and try again.")
+    
+    db.commit()
+    return {"status": "success", "auction_id": request.auction_id, "item_name": item_name, "bid_amount": updated_bid[0]}

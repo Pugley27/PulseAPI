@@ -41,11 +41,17 @@ class Auctions(Base):
   start_time = Column(TIMESTAMP)
   end_time = Column(TIMESTAMP)
   active = Column(Boolean)
+
+class Bids(Base):
+  __tablename__ = "bids"
+  auction_id = Column(Integer, primary_key=True, index=True)
+  user_id = Column(BigInteger, primary_key=True, index=True)
+  amount = Column(Integer)
   
 class BidRequest(BaseModel):
   user_id: int
+  auction_id: int
   amount: int
-  item_name: str
 
 class ItemCreate(BaseModel):
   name : str
