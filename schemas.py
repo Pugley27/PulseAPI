@@ -24,6 +24,22 @@ class CruorCreate(BaseModel):
 class CheckBalance(BaseModel):
   member_id: int
 
+# Table for holding quests for members. 
+class Quests(Base):
+  __tablename__ = "quests"
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String)
+  description = Column(String)
+  quest_giver = Column(BigInteger)
+  status = Column(String)
+  quest_completer_id = Column(BigInteger)
+  reward_cruor = Column(Integer)
+
+class QuestCreate(BaseModel):
+  name: str
+  description: str
+  quest_giver: int
+  reward_cruor: int
 
 #Table holding items for auction
 class AuctionItems(Base):
