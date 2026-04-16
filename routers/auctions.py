@@ -122,8 +122,8 @@ def place_bid(request: schemas.BidRequest, db: Session = Depends(get_db), _ = De
 
     # Calculate current committed funds (sum of existing bids)
     # This assumes the "bids" table only contains the user's active leading bids.
-    query_bids = text('SELECT SUM(amount) FROM bids WHERE user_id = :user_id')
-    bids_result = db.execute(query_bids, {"user_id": request.user_id}).fetchone()
+    query_bids = text('SELECT SUM(amount) FROM bids WHERE user_id = :user_id AND auction_id != :current_auction')
+    bids_result = db.execute(query_bids, {"user_id": request.user_id, "current_auction": request.auction_id}).fetchone()
     committed_funds = bids_result[0] if bids_result and bids_result[0] else 0
 
     # Check if current bid + existing bids exceeds balance
