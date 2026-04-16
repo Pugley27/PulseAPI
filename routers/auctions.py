@@ -1,6 +1,6 @@
 # This file handles the routing code for tracking member currency.
 from sqlalchemy.exc import  IntegrityError
-from sqlalchemy import null, text
+from sqlalchemy import null, text, func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -114,15 +114,31 @@ def place_bid(request: schemas.BidRequest, db: Session = Depends(get_db), _ = De
     item_name = auction_row[1]
     print(f"Auction name for auction ID {request.auction_id} is {auction_name} and item name is {item_name}")
 
-    # Then we need to check if the user has enough balance to place the bid
-    query = text('SELECT cruor_amount FROM "lockBox" WHERE member_id = :user_id') # TODO fix lockbox table name so it is not case sensitive and doesn't require quotes
-    balance_result = db.execute(query, {"user_id": request.user_id})    
+    # Fetch total balance from lockBox
+    query = text('SELECT cruor_amount FROM "lockBox" WHERE member_id = :user_id')
+    balance_result = db.execute(query, {"user_id": request.user_id})
     balance_row = balance_result.fetchone()
     balance = balance_row[0] if balance_row else 0
-    print(f"User ID {request.user_id} has a balance of {balance} Cruor")
 
-    if request.amount > balance:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance. You have {balance} Cruor but your bid is for {request.amount} Cruor.")
+    # Calculate current committed funds (sum of existing bids)
+    # This assumes the "bids" table only contains the user's active leading bids.
+    query_bids = text('SELECT SUM(amount) FROM bids WHERE user_id = :user_id')
+    bids_result = db.execute(query_bids, {"user_id": request.user_id}).fetchone()
+    committed_funds = bids_result[0] if bids_result and bids_result[0] else 0
+
+    # Check if current bid + existing bids exceeds balance
+    total_commitment = committed_funds + request.amount
+
+    print(f"User {request.user_id}: Balance {balance}, Existing Bids {committed_funds}, New Bid {request.amount}")
+
+    if total_commitment > balance:
+        raise HTTPException(
+            status_code=400, 
+            detail=(
+                f"Insufficient balance. Your total committed funds ({total_commitment} Cruor) "
+                f"would exceed your balance of {balance} Cruor."
+            )
+        )    
 
     # If they have enough balance, we insert or update their bid for this auction
     stmt = text("""
