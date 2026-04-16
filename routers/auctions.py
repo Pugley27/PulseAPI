@@ -17,26 +17,26 @@ router = APIRouter(
 @router.post("/add-item")
 def add_item(item: schemas.ItemCreate, db: Session = Depends(get_db), _ = Depends(verify_key)):  
     # Insert the item into the database
-    stmt = text("INSERT INTO auction_items (name, description) VALUES (:name, :description) returning id")
-    result = db.execute(stmt, {"name": item.name, "description": item.description})
+    stmt = text("INSERT INTO auction_items (name, description, status, auction_id, member_id, holder_id) VALUES (:name, :description, :status, :auction_id, :member_id, :holder_id) returning id")
+    result = db.execute(stmt, {"name": item.name, "description": item.description, "status": "available", "auction_id": None, "member_id": None, "holder_id": item.holder_id})
     id = result.fetchone()[0]
     db.commit()
     return {"status": "created", "item_id": id}
 
 @router.get("/items")
 def get_items(db: Session = Depends(get_db), _ = Depends(verify_key)):
-    result = db.execute(text("SELECT id, name, description FROM auction_items"))
-    items = [{"id": row[0], "name": row[1], "description": row[2]} for row in result.fetchall()]
+    result = db.execute(text("SELECT id, name, description, status, auction_id, member_id, holder_id FROM auction_items"))
+    items = [{"id": row[0], "name": row[1], "description": row[2], "status": row[3], "auction_id": row[4], "member_id": row[5], "holder_id": row[6]} for row in result.fetchall()]
     return {"items": items}
 
 @router.post("/add-auction")
 def add_auction(auction: schemas.AuctionCreate, db: Session = Depends(get_db), _ = Depends(verify_key)):  
     # First we need to get the item name for the response, and make sure it is a valid item ID
-    item_name_result = db.execute(text("SELECT name FROM auction_items WHERE id = :item_id"), {"item_id": auction.item_id})
+    item_name_result = db.execute(text("SELECT name FROM auction_items WHERE id = :item_id and status = 'available'"), {"item_id": auction.item_id})
     item_result = item_name_result.fetchone()
     print(f"Querying for item ID: {auction.item_id}. Result: {item_result}")
     if not item_result:
-        raise HTTPException(status_code=400, detail="Invalid item ID. Please check the item ID and try again.")
+        raise HTTPException(status_code=400, detail="Invalid item ID. Please check the item ID and ensure that the item is available and try again.")
     item_name = item_result[0]
     print(f"Item name for item ID {auction.item_id} is {item_name}")
 
@@ -53,33 +53,37 @@ def add_auction(auction: schemas.AuctionCreate, db: Session = Depends(get_db), _
             detail=f"Item '{item_name}' (ID: {auction.item_id}) is already listed in an active auction."
         )
     
-    # Insert the auction into the database
-    stmt = text("INSERT INTO auctions (name, description, item_id) VALUES (:name, :description, :item_id) returning id")
+    # Insert the auction into the database 
+
+    stmt = text("INSERT INTO auctions (name, description, item_id, status) VALUES (:name, :description, :item_id, 'unscheduled') returning id")
     result = db.execute(stmt, {"name": auction.name, "description": auction.description, "item_id": auction.item_id})
     return_result = result.fetchone();
     if not return_result:
         raise HTTPException(status_code=400, detail="Failed to create auction. Please check the item ID and try again.")
     id = return_result[0]
+    
+    # update the auction item to set the auction_id so we know it is listed in an auction
+    db.execute(text("UPDATE auction_items SET auction_id = :auction_id, status = 'listed' WHERE id = :item_id"), {"auction_id": id, "item_id": auction.item_id})
 
     db.commit()
     return {"status": "created", "auction_id": id, "item_name": item_name}
 
 @router.get("/active")
 def get_active_auctions(db: Session = Depends(get_db), _ = Depends(verify_key)):
-    result = db.execute(text("SELECT auctions.id, auctions.name, auctions.description, auctions.end_time, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.active = true"))
+    result = db.execute(text("SELECT auctions.id, auctions.name, auctions.description, auctions.end_time, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.status = 'active'"))
     auctions = [{"id": row[0], "name": row[1], "description": row[2], "end_time": row[3], "item_name": row[4]} for row in result.fetchall()]
     return {"auctions": auctions}
 
 @router.get("/unscheduled")
 def get_unscheduled_auctions(db: Session = Depends(get_db), _ = Depends(verify_key)):
-    result = db.execute(text("SELECT auctions.id, auctions.name, auctions.description, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.active = false or auctions.active is null"))
+    result = db.execute(text("SELECT auctions.id, auctions.name, auctions.description, auction_items.name as item_name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.status = 'unscheduled'"))
     auctions = [{"id": row[0], "name": row[1], "description": row[2], "item_name": row[3]} for row in result.fetchall()]
     return {"auctions": auctions}
 
 @router.post("/start-auction")
 def start_auction(request: schemas.StartAuctionRequest, db: Session = Depends(get_db), _ = Depends(verify_key)):
-    # First we need to check if the auction ID is valid and get the item name for the response
-    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id"), {"auction_id": request.auction_id})
+    # First we need to check if the auction ID is valid, make sure the status is not already awarded, and get the item name for the response
+    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id AND auctions.status != 'awarded'"), {"auction_id": request.auction_id})
     auction_row = auction_result.fetchone()
     print(f"Querying for auction ID: {request.auction_id}. Result: {auction_row}")
     if not auction_row:
@@ -89,8 +93,8 @@ def start_auction(request: schemas.StartAuctionRequest, db: Session = Depends(ge
     print(f"Auction name for auction ID {request.auction_id} is {auction_name} and item name is {item_name}")
 
     # Then we update the auction to set it as active and set the end time based on the duration in DD/MM/YYYY HH:MM format
-    end_time = datetime.datetime.now() + datetime.timedelta(minutes=request.duration_minutes)
-    result = db.execute(text("UPDATE auctions SET active = true, end_time = :end_time WHERE id = :auction_id returning id"), {"end_time": end_time, "auction_id": request.auction_id})
+    end_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=request.duration_minutes)
+    result = db.execute(text("UPDATE auctions SET status = 'active', end_time = :end_time WHERE id = :auction_id returning id"), {"end_time": end_time, "auction_id": request.auction_id})
     updated_auction = result.fetchone()
     if not updated_auction:
         raise HTTPException(status_code=400, detail="Failed to start the auction. Please check the auction ID and try again.")
@@ -101,7 +105,7 @@ def start_auction(request: schemas.StartAuctionRequest, db: Session = Depends(ge
 @router.post("/place-bid")
 def place_bid(request: schemas.BidRequest, db: Session = Depends(get_db), _ = Depends(verify_key)):
     # First we need to check if the auction ID is valid and get the item name for the response
-    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id AND auctions.active = true"), {"auction_id": request.auction_id})
+    auction_result = db.execute(text("SELECT auctions.name, auction_items.name FROM auctions JOIN auction_items ON auctions.item_id = auction_items.id WHERE auctions.id = :auction_id AND auctions.status = 'active'"), {"auction_id": request.auction_id})
     auction_row = auction_result.fetchone()
     print(f"Querying for active auction ID: {request.auction_id}. Result: {auction_row}")
     if not auction_row:

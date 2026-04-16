@@ -1,7 +1,7 @@
 # definitions for tables to hold org currency for members, and the Pydantic models to validate incoming data for those tables.
 
 
-from sqlalchemy import  BigInteger, Column, TIMESTAMP, Integer, BigInteger, String, Boolean
+from sqlalchemy import  BigInteger, Column, TIMESTAMP, DateTime, Integer, BigInteger, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 
@@ -31,6 +31,10 @@ class AuctionItems(Base):
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String)
   description = Column(String)
+  status = Column(String)
+  auction_id = Column(Integer)
+  member_id = Column(BigInteger)
+  holder_id = Column(BigInteger)
 
 class Auctions(Base):
   __tablename__ = "auctions"
@@ -38,9 +42,11 @@ class Auctions(Base):
   name = Column(String)
   description = Column(String)  
   item_id = Column(Integer)
-  start_time = Column(TIMESTAMP)
-  end_time = Column(TIMESTAMP)
-  active = Column(Boolean)
+  start_time = Column(DateTime(timezone=True))
+  end_time = Column(DateTime(timezone=True))
+  status = Column(String)
+  winner_id = Column(BigInteger)
+  holder_id = Column(BigInteger)
 
 class Bids(Base):
   __tablename__ = "bids"
@@ -59,6 +65,7 @@ class AuctionBids(BaseModel):
 class ItemCreate(BaseModel):
   name : str
   description: str
+  holder_id: int
 
 class AuctionCreate(BaseModel):
   name: str
